@@ -1,0 +1,22 @@
+{
+  "name": "cursor-plugin-cc",
+  "owner": {
+    "name": "ningzio",
+    "url": "https://github.com/ningzio"
+  },
+  "metadata": {
+    "description": "Dispatch tasks to cursor-agent from Claude Code with worktree isolation, background jobs, and session boundary safety.",
+    "homepage": "https://github.com/ningzio/cursor-plugin-cc",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "cursor",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Five slash commands (/cursor:setup, /cursor:dispatch, /cursor:status, /cursor:result, /cursor:cancel) that hand a task off to cursor-agent in an isolated git worktree. Foreground or background, with full job control and per-Claude-session filtering.",
+      "category": "agent",
+      "tags": ["cursor", "cursor-agent", "agent", "worktree", "background-jobs", "delegation"]
+    }
+  ]
+}

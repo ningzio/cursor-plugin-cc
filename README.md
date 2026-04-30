@@ -43,35 +43,31 @@ Run `/cursor:setup` after installation to verify the agent binary is found and l
 
 ## Installation
 
-### Option A: clone & register locally
+The repo ships its own [`marketplace.json`](./.claude-plugin/marketplace.json), so Claude Code can install it directly from GitHub. Inside any Claude Code session run:
+
+```
+/plugin marketplace add ningzio/cursor-plugin-cc
+/plugin install cursor@cursor-plugin-cc
+```
+
+The first command registers the GitHub repo as a marketplace; the second installs the `cursor` plugin from it. After installation, **restart your Claude Code session** so the SessionStart hook is registered.
+
+To update later:
+
+```
+/plugin marketplace update cursor-plugin-cc
+/plugin install cursor@cursor-plugin-cc      # picks up the new version
+```
+
+### Manual install (path-based)
+
+If you want to hack on it locally without going through the marketplace flow:
 
 ```bash
 git clone https://github.com/ningzio/cursor-plugin-cc.git ~/.claude/plugins/cursor-plugin-cc
 ```
 
-Then add it to your Claude Code settings (`~/.claude/settings.json` or project-level `.claude/settings.json`):
-
-```json
-{
-  "plugins": {
-    "cursor-plugin-cc": {
-      "path": "~/.claude/plugins/cursor-plugin-cc"
-    }
-  }
-}
-```
-
-### Option B: install via Claude Code's plugin manager
-
-If/when this is published to a marketplace, you'll be able to use:
-
-```
-/plugin install cursor-plugin-cc
-```
-
-(Not yet available — please use Option A for now.)
-
-After installation, restart your Claude Code session so the SessionStart hook can register.
+Then point Claude Code at the path via your `~/.claude/settings.json`. (The marketplace install is recommended for normal use.)
 
 ## Quick start
 
@@ -182,9 +178,9 @@ Most users won't touch these.
 
 Known limitations:
 
-- No marketplace publication yet — install via local clone (Option A above).
 - `splitRawArgumentString` is intentionally a minimal tokenizer (whitespace + paired single/double quotes; no shell escapes). For prompts containing literal quote characters, wrap them in the opposite style.
 - Jobs are pruned at 50 entries per state file (oldest first by `updatedAt`).
+- The plugin assumes you're running inside a git repo. `/cursor:dispatch` exits non-zero outside one.
 
 ## Development
 
