@@ -1,0 +1,27 @@
+{
+  "name": "cursor-plugin-cc",
+  "version": "0.1.0",
+  "description": "A Claude Code plugin that dispatches tasks to cursor-agent in isolated git worktrees, with background jobs and session boundary safety.",
+  "type": "module",
+  "engines": { "node": ">=18.18" },
+  "scripts": {
+    "test": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null node --test 'tests/*.test.mjs'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ningzio/cursor-plugin-cc.git"
+  },
+  "license": "MIT",
+  "author": "ningzio (https://github.com/ningzio)",
+  "bugs": { "url": "https://github.com/ningzio/cursor-plugin-cc/issues" },
+  "homepage": "https://github.com/ningzio/cursor-plugin-cc#readme",
+  "keywords": [
+    "claude-code",
+    "claude-plugin",
+    "cursor",
+    "cursor-agent",
+    "git-worktree",
+    "agent",
+    "ai"
+  ]
+}

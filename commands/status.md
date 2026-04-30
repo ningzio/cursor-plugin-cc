@@ -1,0 +1,18 @@
+---
+description: List cursor dispatch jobs in this Claude session
+argument-hint: '[--all] [--json]'
+disable-model-invocation: true
+allowed-tools: Bash(node:*)
+---
+
+Run the cursor companion status command and return stdout verbatim.
+
+```bash
+TMP=$(mktemp -t cursor-args.XXXXXXXX)
+cat >"$TMP" <<'__CURSOR_RAW_ARGS_END_a8f3c91d4b__'
+$ARGUMENTS
+__CURSOR_RAW_ARGS_END_a8f3c91d4b__
+node "${CLAUDE_PLUGIN_ROOT}/scripts/cursor-companion.mjs" status --raw-args-file "$TMP"
+```
+
+Do not summarize.
