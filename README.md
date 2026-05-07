@@ -1,6 +1,6 @@
 # cursor-plugin-cc
 
-A [Claude Code](https://claude.ai/code) plugin that dispatches tasks to the [cursor-agent CLI](https://docs.cursor.com/cli) and runs them in isolated git worktrees. Foreground or background, with full job control (status / result / cancel) and safe boundaries between Claude sessions.
+A Claude Code and Codex plugin that dispatches tasks to the [cursor-agent CLI](https://docs.cursor.com/cli) and runs them in isolated git worktrees. Foreground or background, with full job control (status / result / cancel) and safe boundaries between agent sessions.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.18-blue.svg)](https://nodejs.org/)
@@ -11,11 +11,11 @@ A [Claude Code](https://claude.ai/code) plugin that dispatches tasks to the [cur
 
 ## What this is
 
-When Claude Code is doing a task and you want to spin up a parallel agent — a second pair of eyes, a long-running migration, an independent implementation pass — you can hand it off to cursor-agent. This plugin gives Claude Code five slash commands to do that safely:
+When Claude Code or Codex is doing a task and you want to spin up a parallel agent — a second pair of eyes, a long-running migration, an independent implementation pass — you can hand it off to cursor-agent. This plugin gives your coding agent five slash commands to do that safely:
 
 - `/cursor:setup` — verify cursor-agent is installed and logged in
 - `/cursor:dispatch <prompt>` — send a task to cursor-agent in a fresh git worktree (foreground or background)
-- `/cursor:status` — list jobs in the current Claude session
+- `/cursor:status` — list jobs in the current agent session
 - `/cursor:result [jobId]` — fetch the result of the latest (or a specific) job
 - `/cursor:cancel [jobId]` — cancel a running job
 
@@ -28,13 +28,13 @@ A naïve wrapper would be ~150 lines. This plugin is bigger because it solves fo
 1. **Background dispatch with job control.** Once `/cursor:status` and `/cursor:result` need to work across separate Claude turns, the plugin must persist state to disk. That means atomic writes, file locks, and a deduplicated job record.
 2. **Concurrency safety.** Two `/cursor:dispatch` calls racing each other must not clobber each other's job records. The plugin uses an explicit reservation step inside a state lock.
 3. **PID safety.** Cancellation needs to signal the right process. Earlier versions of this code accidentally sent `SIGTERM` to PID `-1` once and logged the user out. The plugin now rejects unsafe pids and does a liveness check before signalling.
-4. **Session boundary.** If you have two Claude Code windows open, `/cursor:status` must only show *your* jobs. A SessionStart hook stamps the current Claude session id into the environment so the companion can filter.
+4. **Session boundary.** If you have two agent sessions open, `/cursor:status` must only show *your* jobs. A SessionStart hook stamps the current session id into the environment so the companion can filter.
 
 If you don't need any of those, you don't need this plugin — `cursor-agent` directly works fine.
 
 ## Prerequisites
 
-- **Claude Code** — install from <https://claude.ai/code>
+- **Claude Code** or **Codex**
 - **cursor-agent CLI** — install per [cursor docs](https://docs.cursor.com/cli) and log in (`agent login`)
 - **Node.js ≥ 18.18** — only used by the plugin's companion runtime; nothing to install separately
 - **Git** — `git worktree` is used heavily
@@ -42,6 +42,33 @@ If you don't need any of those, you don't need this plugin — `cursor-agent` di
 Run `/cursor:setup` after installation to verify the agent binary is found and logged in.
 
 ## Installation
+
+### Codex
+
+This repo ships a Codex plugin manifest at [`.codex-plugin/plugin.json`](./.codex-plugin/plugin.json) and a Codex marketplace catalog at [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json).
+
+Register the marketplace from Codex:
+
+```bash
+codex plugin marketplace add ningzio/cursor-plugin-cc
+```
+
+Then install the `cursor` plugin from the Codex plugin UI. After installation, start a new Codex session so the SessionStart hook is registered.
+
+To update the registered marketplace later:
+
+```bash
+codex plugin marketplace upgrade cursor-plugin-cc
+```
+
+For local development, register a local checkout instead:
+
+```bash
+git clone https://github.com/ningzio/cursor-plugin-cc.git
+codex plugin marketplace add ./cursor-plugin-cc
+```
+
+### Claude Code
 
 The repo ships its own [`marketplace.json`](./.claude-plugin/marketplace.json), so Claude Code can install it directly from GitHub. Inside any Claude Code session run:
 
@@ -59,7 +86,7 @@ To update later:
 /plugin install cursor@cursor-plugin-cc      # picks up the new version
 ```
 
-### Manual install (path-based)
+#### Manual install (path-based)
 
 If you want to hack on it locally without going through the marketplace flow:
 
@@ -122,7 +149,7 @@ When `<prompt>` contains shell metacharacters (`$`, backticks, `;`), they're nev
 
 ### `/cursor:status [--all] [--json]`
 
-Lists jobs in the current Claude session. `--all` shows jobs from every session.
+Lists jobs in the current agent session. `--all` shows jobs from every session.
 
 ### `/cursor:result [jobId] [--json]`
 
@@ -135,7 +162,7 @@ Cancels a running or queued job. Without `jobId`, picks the newest cancellable j
 ## How it works (briefly)
 
 ```
-                    Claude Code session
+                    Agent session
                            │
         ┌──────────────────┼──────────────────┐
         │                  │                  │
@@ -166,15 +193,15 @@ Most users won't touch these.
 
 | Variable | Set by | Purpose |
 |---|---|---|
-| `CURSOR_COMPANION_SESSION_ID` | SessionStart hook | Current Claude Code session id; used to filter jobs |
-| `CLAUDE_PLUGIN_DATA` | Claude Code | Per-plugin data directory |
-| `CLAUDE_ENV_FILE` | Claude Code (during SessionStart) | Where the hook exports env vars to be sourced into the session |
+| `CURSOR_COMPANION_SESSION_ID` | SessionStart hook | Current agent session id; used to filter jobs |
+| `CLAUDE_PLUGIN_DATA` | Plugin host | Per-plugin data directory |
+| `CLAUDE_ENV_FILE` | Plugin host (during SessionStart) | Where the hook exports env vars to be sourced into the session |
 | `CURSOR_COMPANION_AGENT_BINARY` | You (testing) | Override the cursor-agent binary path |
 | `CURSOR_COMPANION_AGENT_BINARY_ARG0` | You (testing) | Force argv[0] when overriding the binary |
 
 ## Status
 
-**Phase 1** — the slash commands above are stable and have 109 unit tests covering atomic state writes, dispatch reservation, PID safety, session filtering, dirty-worktree refusal, and stream-json parsing.
+**Phase 1** — the slash commands above are stable and have 112 unit tests covering atomic state writes, dispatch reservation, PID safety, session filtering, dirty-worktree refusal, stream-json parsing, and Codex manifest wiring.
 
 Known limitations:
 
