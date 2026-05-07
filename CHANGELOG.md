@@ -6,6 +6,13 @@ This project follows semantic versioning where practical.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-07
+
+### Fixed
+
+- Point the Codex marketplace entry at the standard `./plugins/cursor` plugin root so the Codex plugin UI can enumerate `cursor`.
+- Move shared commands, agents, hooks, scripts, and skills under the self-contained `plugins/cursor` plugin root, with root-level compatibility symlinks for existing Claude Code paths.
+
 ## [0.2.0] - 2026-05-07
 
 ### Added

@@ -45,7 +45,7 @@
 
 ### Codex
 
-仓库自带 Codex 插件 manifest（[`.codex-plugin/plugin.json`](./.codex-plugin/plugin.json)）和 Codex marketplace catalog（[`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json)）。
+仓库自带 Codex 插件根目录（[`plugins/cursor`](./plugins/cursor)），里面有 manifest（[`plugins/cursor/.codex-plugin/plugin.json`](./plugins/cursor/.codex-plugin/plugin.json)），同时仓库根目录提供 Codex marketplace catalog（[`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json)）。
 
 在 Codex 里注册 marketplace：
 
@@ -60,6 +60,8 @@ codex plugin marketplace add ningzio/cursor-plugin-cc
 ```bash
 codex plugin marketplace upgrade cursor-plugin-cc
 ```
+
+如果你是在 `v0.2.1` 之前添加过这个 marketplace，请先运行上面的 upgrade 命令，然后重启 Codex，再去插件界面搜索。
 
 本地开发时，可以注册本地 checkout：
 

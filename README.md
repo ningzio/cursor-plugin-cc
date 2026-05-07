@@ -45,7 +45,7 @@ Run `/cursor:setup` after installation to verify the agent binary is found and l
 
 ### Codex
 
-This repo ships a Codex plugin manifest at [`.codex-plugin/plugin.json`](./.codex-plugin/plugin.json) and a Codex marketplace catalog at [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json).
+This repo ships a Codex plugin root at [`plugins/cursor`](./plugins/cursor), with a manifest at [`plugins/cursor/.codex-plugin/plugin.json`](./plugins/cursor/.codex-plugin/plugin.json) and a Codex marketplace catalog at [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json).
 
 Register the marketplace from Codex:
 
@@ -60,6 +60,8 @@ To update the registered marketplace later:
 ```bash
 codex plugin marketplace upgrade cursor-plugin-cc
 ```
+
+If you added this marketplace before `v0.2.1`, run the upgrade command above and restart Codex before searching the plugin UI.
 
 For local development, register a local checkout instead:
 

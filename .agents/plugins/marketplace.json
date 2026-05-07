@@ -8,7 +8,7 @@
       "name": "cursor",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/cursor"
       },
       "policy": {
         "installation": "AVAILABLE",
