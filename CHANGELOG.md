@@ -12,6 +12,7 @@ This project follows semantic versioning where practical.
 
 - `/cursor:dispatch --mode <plan|ask|agent>` selects the cursor-agent execution mode. `plan` is read-only/planning, `ask` is read-only Q&A, `agent` is the implicit default (no `--mode` is forwarded). Read-only modes drop `--force` and skip the worktree auto-commit step.
 - `dispatch.md` mode-routing rule: when the user does not specify a mode, the main thread infers from intent and offers a three-option `AskUserQuestion` (Ask only / Plan only / Agent), recommending the option that best matches the request.
+- `dispatch.md` model-routing rule: on a fresh dispatch with no `--model`, the slash command silently appends `--model auto` so cursor's per-request router picks the model. `--resume` keeps the thread's bound model. Users override with explicit `--model <id>`; `cursor-agent --list-models` (or `cursor-agent models`) lists currently available IDs.
 
 ### Changed
 
