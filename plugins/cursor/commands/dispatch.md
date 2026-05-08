@@ -1,6 +1,6 @@
 ---
 description: Dispatch a task to cursor agent in an isolated git worktree
-argument-hint: '[--wait|--background] [--resume <jobId>|--fresh] [--model <m>] [--plan-only] [--worktree-base <ref>] <prompt>'
+argument-hint: '[--wait|--background] [--resume <jobId>|--fresh] [--model <m>] [--mode plan|ask|agent] [--plan-only] [--worktree-base <ref>] <prompt>'
 disable-model-invocation: true
 allowed-tools: Bash(node:*), AskUserQuestion, Agent
 ---
@@ -22,6 +22,19 @@ Routing rules:
     - `Wait for results`
     - `Run in background`
   - Put the recommended option first and suffix its label with `(Recommended)`.
+
+Mode routing (cursor-agent supports `plan`, `ask`, `agent`):
+
+- If the request already contains `--mode <plan|ask|agent>` or `--plan-only`, do not ask — honor it.
+- Otherwise infer from intent and ask the user once via `AskUserQuestion`:
+  - Pure question / explanation / read-only inspection ("what does X do", "why is Y", "解释一下", "看看") → recommend `Ask only (read-only Q&A)` first.
+  - Wants a written plan or design before any edit ("draft a plan", "先出个方案", "怎么改") → recommend `Plan only (no edits)` first.
+  - Wants the agent to actually do the work ("fix", "implement", "改一下", "动手") → recommend `Agent (default, may edit)` first.
+  - When in doubt, recommend `Agent (default, may edit)` first.
+- Three options total; never offer more.
+- On `Ask only`, append `--mode ask` to the forwarded text.
+- On `Plan only`, append `--mode plan`.
+- On `Agent`, append nothing (default).
 
 Resume routing:
 

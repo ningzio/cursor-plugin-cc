@@ -6,6 +6,17 @@ This project follows semantic versioning where practical.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-05-08
+
+### Added
+
+- `/cursor:dispatch --mode <plan|ask|agent>` selects the cursor-agent execution mode. `plan` is read-only/planning, `ask` is read-only Q&A, `agent` is the implicit default (no `--mode` is forwarded). Read-only modes drop `--force` and skip the worktree auto-commit step.
+- `dispatch.md` mode-routing rule: when the user does not specify a mode, the main thread infers from intent and offers a three-option `AskUserQuestion` (Ask only / Plan only / Agent), recommending the option that best matches the request.
+
+### Changed
+
+- `--plan-only` is retained as a back-compat alias for `--mode plan`.
+
 ## [0.2.2] - 2026-05-08
 
 ### Changed

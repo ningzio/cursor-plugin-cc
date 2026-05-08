@@ -98,6 +98,148 @@ test("dispatch background returns immediately and job runs to completion", async
   });
 });
 
+// Read-only modes (plan, ask) must skip the worktree auto-commit step so the
+// dispatch worktree is left untouched (no [<jobId>] commit on top of HEAD).
+test("dispatch --mode plan skips worktree finalize", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      initRepo(repo);
+      const r = spawnSync(process.execPath, [COMPANION, "dispatch", "--wait", "--mode", "plan", "draft a plan"], {
+        encoding: "utf8",
+        cwd: repo,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: data,
+          CURSOR_COMPANION_SESSION_ID: "claude-sess-plan",
+          CURSOR_COMPANION_AGENT_BINARY: process.execPath,
+          CURSOR_COMPANION_AGENT_BINARY_ARG0: FIXTURE,
+          FAKE_CURSOR_SESSION_ID: "sess-plan",
+          FAKE_CURSOR_RESULT: "plan body",
+          FAKE_CURSOR_TOUCH_FILE: "plan-artifact.txt"
+        }
+      });
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      process.env.CLAUDE_PLUGIN_DATA = data;
+      const job = loadState(repo).jobs[0];
+      delete process.env.CLAUDE_PLUGIN_DATA;
+      assert.equal(job.status, "completed");
+      // 顶部 commit 仍是 init，没有 finalize 自动提交
+      const headMsg = execSync(`git -C "${job.worktree}" log -1 --pretty=%s`, { encoding: "utf8" }).trim();
+      assert.equal(headMsg, "init");
+      assert.equal(job.headSha, null);
+    });
+  });
+});
+
+test("dispatch --mode ask skips worktree finalize", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      initRepo(repo);
+      const r = spawnSync(process.execPath, [COMPANION, "dispatch", "--wait", "--mode", "ask", "explain x"], {
+        encoding: "utf8",
+        cwd: repo,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: data,
+          CURSOR_COMPANION_SESSION_ID: "claude-sess-ask",
+          CURSOR_COMPANION_AGENT_BINARY: process.execPath,
+          CURSOR_COMPANION_AGENT_BINARY_ARG0: FIXTURE,
+          FAKE_CURSOR_SESSION_ID: "sess-ask",
+          FAKE_CURSOR_RESULT: "answer body",
+          FAKE_CURSOR_TOUCH_FILE: "should-not-commit.txt"
+        }
+      });
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      process.env.CLAUDE_PLUGIN_DATA = data;
+      const job = loadState(repo).jobs[0];
+      delete process.env.CLAUDE_PLUGIN_DATA;
+      assert.equal(job.status, "completed");
+      const headMsg = execSync(`git -C "${job.worktree}" log -1 --pretty=%s`, { encoding: "utf8" }).trim();
+      assert.equal(headMsg, "init");
+      assert.equal(job.headSha, null);
+    });
+  });
+});
+
+test("dispatch --mode agent is treated as default (finalize runs)", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      initRepo(repo);
+      const r = spawnSync(process.execPath, [COMPANION, "dispatch", "--wait", "--mode", "agent", "do thing"], {
+        encoding: "utf8",
+        cwd: repo,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: data,
+          CURSOR_COMPANION_SESSION_ID: "claude-sess-agent",
+          CURSOR_COMPANION_AGENT_BINARY: process.execPath,
+          CURSOR_COMPANION_AGENT_BINARY_ARG0: FIXTURE,
+          FAKE_CURSOR_SESSION_ID: "sess-agent",
+          FAKE_CURSOR_RESULT: "DONE",
+          FAKE_CURSOR_TOUCH_FILE: "agent-result.txt"
+        }
+      });
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      process.env.CLAUDE_PLUGIN_DATA = data;
+      const job = loadState(repo).jobs[0];
+      delete process.env.CLAUDE_PLUGIN_DATA;
+      const commitMsg = execSync(`git -C "${job.worktree}" log -1 --pretty=%s`, { encoding: "utf8" }).trim();
+      assert.match(commitMsg, new RegExp(`^\\[${job.id}\\] do thing$`));
+    });
+  });
+});
+
+test("dispatch --plan-only retained as alias for --mode plan", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      initRepo(repo);
+      const r = spawnSync(process.execPath, [COMPANION, "dispatch", "--wait", "--plan-only", "draft"], {
+        encoding: "utf8",
+        cwd: repo,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: data,
+          CURSOR_COMPANION_SESSION_ID: "claude-sess-planalias",
+          CURSOR_COMPANION_AGENT_BINARY: process.execPath,
+          CURSOR_COMPANION_AGENT_BINARY_ARG0: FIXTURE,
+          FAKE_CURSOR_SESSION_ID: "sess-planalias",
+          FAKE_CURSOR_RESULT: "outline",
+          FAKE_CURSOR_TOUCH_FILE: "plan-only.txt"
+        }
+      });
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      process.env.CLAUDE_PLUGIN_DATA = data;
+      const job = loadState(repo).jobs[0];
+      delete process.env.CLAUDE_PLUGIN_DATA;
+      const headMsg = execSync(`git -C "${job.worktree}" log -1 --pretty=%s`, { encoding: "utf8" }).trim();
+      assert.equal(headMsg, "init");
+      assert.equal(job.headSha, null);
+    });
+  });
+});
+
+test("dispatch --mode <invalid> rejects with exit 2", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      initRepo(repo);
+      const r = spawnSync(process.execPath, [COMPANION, "dispatch", "--wait", "--mode", "debug", "x"], {
+        encoding: "utf8",
+        cwd: repo,
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_DATA: data,
+          CURSOR_COMPANION_SESSION_ID: "claude-sess-bad",
+          CURSOR_COMPANION_AGENT_BINARY: process.execPath,
+          CURSOR_COMPANION_AGENT_BINARY_ARG0: FIXTURE
+        }
+      });
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /--mode/);
+      assert.match(r.stderr, /plan|ask|agent/);
+    });
+  });
+});
+
 test("dispatch --resume <jobId> reuses cursorSessionId and worktree", () => {
   withTempDir((repo) => {
     withTempDir((data) => {

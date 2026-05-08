@@ -132,6 +132,7 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 /cursor:dispatch [--wait | --background]
                  [--resume <jobId> | --fresh]
                  [--model <model>]
+                 [--mode plan | ask | agent]
                  [--plan-only]
                  [--worktree-base <ref>]
                  <prompt>
@@ -144,8 +145,11 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 | `--resume <jobId>` | Continue an existing cursor thread in the same worktree |
 | `--fresh` | Start a new dispatch even if a previous job is reusable |
 | `--model <model>` | Pass a model name to cursor-agent (e.g. `--model claude-4.5-sonnet`) |
-| `--plan-only` | Tell cursor to plan only, not execute |
+| `--mode <plan\|ask\|agent>` | Pick the cursor execution mode. `plan` = read-only/planning. `ask` = read-only Q&A. `agent` = default (may edit). Read-only modes drop `--force` and skip the worktree auto-commit. |
+| `--plan-only` | Back-compat alias for `--mode plan` |
 | `--worktree-base <ref>` | Branch the worktree off a specific ref instead of HEAD |
+
+When the user does not specify a mode, the slash command picks one based on the request shape and confirms once with a three-option chooser (Ask only / Plan only / Agent).
 
 When `<prompt>` contains shell metacharacters (`$`, backticks, `;`), they're never re-evaluated by sh. The slash command writes the raw prompt to a tempfile and the companion tokenises it inside Node.
 
