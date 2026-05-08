@@ -144,7 +144,7 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 | `--background` | Detach immediately; check progress with `/cursor:status` |
 | `--resume <jobId>` | Continue an existing cursor thread in the same worktree |
 | `--fresh` | Start a new dispatch even if a previous job is reusable |
-| `--model <model>` | Pass a model name to cursor-agent (e.g. `--model claude-4.5-sonnet`) |
+| `--model <model>` | Pass a model name to cursor-agent (e.g. `--model claude-4.5-sonnet`). When omitted on a fresh dispatch, the slash command silently appends `--model auto` so cursor's per-request router picks. Run `cursor-agent --list-models` (or `cursor-agent models`) to see currently available IDs — cursor's lineup changes over time. `--resume <jobId>` keeps the thread's existing model. |
 | `--mode <plan\|ask\|agent>` | Pick the cursor execution mode. `plan` = read-only/planning. `ask` = read-only Q&A. `agent` = default (may edit). Read-only modes drop `--force` and skip the worktree auto-commit. |
 | `--plan-only` | Back-compat alias for `--mode plan` |
 | `--worktree-base <ref>` | Branch the worktree off a specific ref instead of HEAD |
@@ -207,7 +207,7 @@ Most users won't touch these.
 
 ## Status
 
-**Phase 1** — the slash commands above are stable and have 112 unit tests covering atomic state writes, dispatch reservation, PID safety, session filtering, dirty-worktree refusal, stream-json parsing, and Codex manifest wiring.
+**Phase 1** — the slash commands above are stable and have 119 unit tests covering atomic state writes, dispatch reservation, PID safety, session filtering, dirty-worktree refusal, stream-json parsing, mode/--plan-only routing, and Codex manifest wiring.
 
 Known limitations:
 

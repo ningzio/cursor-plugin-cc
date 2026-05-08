@@ -36,6 +36,12 @@ Mode routing (cursor-agent supports `plan`, `ask`, `agent`):
 - On `Plan only`, append `--mode plan`.
 - On `Agent`, append nothing (default).
 
+Model routing:
+
+- If the request already contains `--model <m>`, leave it untouched.
+- If the request contains `--resume <jobId>`, append nothing — the existing cursor thread already has a bound model.
+- Otherwise silently append `--model auto`. `auto` is cursor's per-request router (visible in `cursor-agent --list-models`), so the slash command never enumerates specific model IDs and never goes stale as cursor's lineup changes. Users wanting a specific model can override with `--model <id>`; run `cursor-agent --list-models` to see currently available IDs.
+
 Resume routing:
 
 - If the request contains `--resume` or `--fresh`, do not ask.
