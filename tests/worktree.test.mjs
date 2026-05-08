@@ -9,7 +9,7 @@ import {
   finalizeWorktree,
   resolveWorktreePath,
   destroyDispatchWorktree
-} from "../scripts/lib/worktree.mjs";
+} from "../plugins/cursor/scripts/lib/worktree.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 function initRepo(dir) {

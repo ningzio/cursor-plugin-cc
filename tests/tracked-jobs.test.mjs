@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runForegroundJob } from "../scripts/lib/tracked-jobs.mjs";
-import { loadState, resolveJobLogFile } from "../scripts/lib/state.mjs";
+import { runForegroundJob } from "../plugins/cursor/scripts/lib/tracked-jobs.mjs";
+import { loadState, resolveJobLogFile } from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 const FIXTURE = path.resolve(fileURLToPath(import.meta.url), "../fake-cursor-fixture.mjs");

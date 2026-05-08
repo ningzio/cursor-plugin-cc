@@ -4,10 +4,10 @@ import { execSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { listJobs, upsertJob } from "../scripts/lib/state.mjs";
+import { listJobs, upsertJob } from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
-const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../scripts/cursor-companion.mjs");
+const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../plugins/cursor/scripts/cursor-companion.mjs");
 
 function run(cwd, args, env = {}) {
   return spawnSync(process.execPath, [COMPANION, ...args], {

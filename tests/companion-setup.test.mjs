@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../scripts/cursor-companion.mjs");
+const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../plugins/cursor/scripts/cursor-companion.mjs");
 
 test("companion without args prints usage", () => {
   const r = spawnSync(process.execPath, [COMPANION], { encoding: "utf8" });

@@ -4,10 +4,10 @@ import { execSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadState } from "../scripts/lib/state.mjs";
+import { loadState } from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
-const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../scripts/cursor-companion.mjs");
+const COMPANION = path.resolve(fileURLToPath(import.meta.url), "../../plugins/cursor/scripts/cursor-companion.mjs");
 const FIXTURE = path.resolve(fileURLToPath(import.meta.url), "../fake-cursor-fixture.mjs");
 
 function initRepo(dir) {

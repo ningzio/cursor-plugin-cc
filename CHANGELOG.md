@@ -6,6 +6,18 @@ This project follows semantic versioning where practical.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-08
+
+### Changed
+
+- Move the Claude Code plugin root from the repo root into `plugins/cursor`, so a single self-contained directory serves both Claude Code and Codex.
+- Point the Claude Code marketplace entry at `./plugins/cursor`.
+- Drop the root-level compatibility symlinks (`agents`, `commands`, `hooks`, `scripts`, `skills`) and the duplicated root-level `.codex-plugin/`.
+
+### Migration
+
+- Existing Claude Code installs should re-add the marketplace (or run `/plugin marketplace update cursor-plugin-cc`) so the new subdirectory layout takes effect.
+
 ## [0.2.1] - 2026-05-07
 
 ### Fixed

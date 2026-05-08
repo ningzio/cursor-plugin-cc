@@ -61,7 +61,7 @@ To update the registered marketplace later:
 codex plugin marketplace upgrade cursor-plugin-cc
 ```
 
-If you added this marketplace before `v0.2.1`, run the upgrade command above and restart Codex before searching the plugin UI.
+If you added this marketplace before `v0.2.2`, run the upgrade command above and restart Codex before searching the plugin UI.
 
 For local development, register a local checkout instead:
 

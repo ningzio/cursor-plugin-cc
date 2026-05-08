@@ -7,7 +7,7 @@ import {
   renderJobResult,
   renderStatus,
   renderSetupReport
-} from "../scripts/lib/render.mjs";
+} from "../plugins/cursor/scripts/lib/render.mjs";
 
 test("renderDispatchSummary contains jobId, branch, worktree", () => {
   const out = renderDispatchSummary({
