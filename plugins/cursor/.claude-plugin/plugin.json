@@ -1,6 +1,6 @@
 {
   "name": "cursor",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Dispatch tasks to cursor-agent from Claude Code with worktree isolation, background jobs, and session boundary safety.",
   "author": { "name": "ningzio", "url": "https://github.com/ningzio" },
   "homepage": "https://github.com/ningzio/cursor-plugin-cc",

@@ -132,6 +132,7 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 /cursor:dispatch [--wait | --background]
                  [--resume <jobId> | --fresh]
                  [--model <model>]
+                 [--mode plan | ask | agent]
                  [--plan-only]
                  [--worktree-base <ref>]
                  <prompt>
@@ -144,8 +145,11 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 | `--resume <jobId>` | 在原 worktree 里继续之前的 cursor 线程 |
 | `--fresh` | 即使有可复用的旧 job 也另起一个 |
 | `--model <model>` | 给 cursor-agent 传模型名（例如 `--model claude-4.5-sonnet`） |
-| `--plan-only` | 让 cursor 只做计划不执行 |
+| `--mode <plan\|ask\|agent>` | 选 cursor 执行模式：`plan` 只读出方案、`ask` 只读问答、`agent` 默认（可改文件）。只读模式不传 `--force`，也不会做 worktree 自动 commit |
+| `--plan-only` | `--mode plan` 的兼容别名 |
 | `--worktree-base <ref>` | 从指定 ref 拉 worktree，不从 HEAD |
+
+未显式指定模式时，slash 命令会根据请求形态推断，并通过三选一的 `AskUserQuestion`（Ask only / Plan only / Agent）让用户最终确认一次。
 
 `<prompt>` 里如果有 shell 元字符（`$`、反引号、`;`），不会被 sh 重新求值——slash 命令把原始 prompt 写到 tempfile，companion 在 Node 里 tokenize。
 

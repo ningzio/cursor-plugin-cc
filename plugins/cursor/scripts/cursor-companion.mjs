@@ -29,8 +29,12 @@ import { gitStatusPorcelain, isGitRepo } from "./lib/git.mjs";
 
 const DISPATCH_FLAGS = {
   booleans: ["wait", "background", "fresh", "plan-only", "include-dirty", "json"],
-  values: ["resume", "model", "worktree-base"]
+  values: ["resume", "model", "worktree-base", "mode"]
 };
+// cursor-agent --mode only accepts plan|ask. "agent" is the implicit default and
+// must NOT be forwarded as a flag — we accept it here purely so callers can
+// state the choice explicitly, then map it to null downstream.
+const DISPATCH_MODES = new Set(["plan", "ask", "agent"]);
 const STATUS_FLAGS = { booleans: ["all", "json"], values: [] };
 const RESULT_FLAGS = { booleans: ["json"], values: [] };
 const CANCEL_FLAGS = { booleans: ["json"], values: [] };
@@ -39,7 +43,7 @@ function printUsage() {
   process.stdout.write([
     "Usage:",
     "  cursor-companion.mjs setup [--json]",
-    "  cursor-companion.mjs dispatch [--wait|--background] [--resume <jobId>|--fresh] [--model <m>] [--plan-only] [--worktree-base <ref>] <prompt>",
+    "  cursor-companion.mjs dispatch [--wait|--background] [--resume <jobId>|--fresh] [--model <m>] [--mode plan|ask|agent] [--plan-only] [--worktree-base <ref>] <prompt>",
     "  cursor-companion.mjs status [--all] [--json]",
     "  cursor-companion.mjs result [jobId] [--json]",
     "  cursor-companion.mjs cancel [jobId] [--json]",
@@ -198,6 +202,24 @@ async function dispatch(rawArgs) {
     };
   }
 
+  // Resolve execution mode. Precedence:
+  //   1. --mode <plan|ask|agent>  (explicit)
+  //   2. --plan-only              (back-compat alias for --mode plan)
+  //   3. default                  (agent mode, no --mode forwarded)
+  // Read-only modes (plan, ask) drop --force so a misbehaving agent can't
+  // edit files behind the user's back, and skip the auto-commit finalize step.
+  let resolvedMode = null;
+  if (typeof options.mode === "string") {
+    if (!DISPATCH_MODES.has(options.mode)) {
+      process.stderr.write(`Invalid --mode "${options.mode}". Allowed: plan, ask, agent.\n`);
+      process.exit(2);
+    }
+    resolvedMode = options.mode === "agent" ? null : options.mode;
+  } else if (options["plan-only"]) {
+    resolvedMode = "plan";
+  }
+  const isReadOnlyMode = resolvedMode === "plan" || resolvedMode === "ask";
+
   const jobId = generateJobId();
   const { binary, args: agentBinaryArgs } = resolveAgentBinary();
   const finalRepoRoot = resumeContext?.repoRoot ?? repoRoot;
@@ -210,9 +232,9 @@ async function dispatch(rawArgs) {
     jobId,
     prompt,
     options: {
-      force: !options["plan-only"],
+      force: !isReadOnlyMode,
       model: typeof options.model === "string" ? options.model : null,
-      mode: options["plan-only"] ? "plan" : null,
+      mode: resolvedMode,
       baseRef: typeof options["worktree-base"] === "string" ? options["worktree-base"] : null
     },
     claudeSessionId,
