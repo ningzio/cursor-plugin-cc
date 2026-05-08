@@ -45,6 +45,18 @@ test("buildAgentArgs plan-only mode", () => {
   ]);
 });
 
+test("buildAgentArgs ask mode", () => {
+  const args = buildAgentArgs({ prompt: "explain", mode: "ask" });
+  assert.deepEqual(args, [
+    "--print",
+    "--output-format", "stream-json",
+    "--stream-partial-output",
+    "--trust",
+    "--mode", "ask",
+    "explain"
+  ]);
+});
+
 test("parseStreamLine returns null for blank", () => {
   assert.equal(parseStreamLine(""), null);
   assert.equal(parseStreamLine("   "), null);

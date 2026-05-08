@@ -129,7 +129,11 @@ export async function runForegroundJob({
   upsertJob(cwd, { id: jobId, agentPid: null });
 
   let headSha = null;
-  const shouldFinalize = options.mode !== "plan" && !captured.isError;
+  // Read-only modes (plan, ask) leave the worktree alone — the user only wanted
+  // analysis or Q&A, not committed edits. Any other mode (including the default
+  // agent mode where options.mode === null) finalizes on success.
+  const isReadOnlyMode = options.mode === "plan" || options.mode === "ask";
+  const shouldFinalize = !isReadOnlyMode && !captured.isError;
   if (shouldFinalize) {
     headSha = finalizeWorktree(worktree, jobId, prompt);
   }
