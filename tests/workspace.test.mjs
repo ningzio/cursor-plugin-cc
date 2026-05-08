@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
-import { resolveRepoRoot, resolveWorkspaceRoot } from "../scripts/lib/workspace.mjs";
+import { resolveRepoRoot, resolveWorkspaceRoot } from "../plugins/cursor/scripts/lib/workspace.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 test("resolveWorkspaceRoot returns the cwd path", () => {

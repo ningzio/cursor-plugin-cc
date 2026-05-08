@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, splitRawArgumentString } from "../scripts/lib/args.mjs";
+import { parseArgs, splitRawArgumentString } from "../plugins/cursor/scripts/lib/args.mjs";
 
 const config = {
   booleans: ["wait", "background", "fresh", "all", "json", "plan-only"],

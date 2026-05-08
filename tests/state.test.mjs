@@ -22,7 +22,7 @@ import {
   upsertJob,
   withStateLock,
   writeJobFile
-} from "../scripts/lib/state.mjs";
+} from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 function withPluginData(fn) {

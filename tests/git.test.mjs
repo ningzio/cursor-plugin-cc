@@ -11,7 +11,7 @@ import {
   isAncestor,
   isGitRepo,
   revParseHead
-} from "../scripts/lib/git.mjs";
+} from "../plugins/cursor/scripts/lib/git.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 function initRepo(dir) {

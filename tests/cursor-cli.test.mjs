@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildAgentArgs, parseStreamLine, runAgentSync } from "../scripts/lib/cursor-cli.mjs";
+import { buildAgentArgs, parseStreamLine, runAgentSync } from "../plugins/cursor/scripts/lib/cursor-cli.mjs";
 
 const FIXTURE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "fake-cursor-fixture.mjs");
 

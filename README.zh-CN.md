@@ -61,7 +61,7 @@ codex plugin marketplace add ningzio/cursor-plugin-cc
 codex plugin marketplace upgrade cursor-plugin-cc
 ```
 
-如果你是在 `v0.2.1` 之前添加过这个 marketplace，请先运行上面的 upgrade 命令，然后重启 Codex，再去插件界面搜索。
+如果你是在 `v0.2.2` 之前添加过这个 marketplace，请先运行上面的 upgrade 命令，然后重启 Codex，再去插件界面搜索。
 
 本地开发时，可以注册本地 checkout：
 

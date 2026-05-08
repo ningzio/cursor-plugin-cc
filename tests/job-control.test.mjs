@@ -7,8 +7,8 @@ import {
   findResumeCandidate,
   isPidLive,
   isSafePid
-} from "../scripts/lib/job-control.mjs";
-import { upsertJob } from "../scripts/lib/state.mjs";
+} from "../plugins/cursor/scripts/lib/job-control.mjs";
+import { upsertJob } from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
 function withState(fn) {

@@ -5,10 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { upsertJob, listJobs } from "../scripts/lib/state.mjs";
+import { upsertJob, listJobs } from "../plugins/cursor/scripts/lib/state.mjs";
 import { withTempDir } from "./helpers.mjs";
 
-const HOOK = path.resolve(fileURLToPath(import.meta.url), "../../scripts/session-lifecycle-hook.mjs");
+const HOOK = path.resolve(fileURLToPath(import.meta.url), "../../plugins/cursor/scripts/session-lifecycle-hook.mjs");
 
 function run(eventName, input, env = {}) {
   const r = spawnSync(process.execPath, [HOOK, eventName], {
