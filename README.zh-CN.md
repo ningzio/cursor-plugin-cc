@@ -165,6 +165,23 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 
 取消正在跑或 queued 的 job。不带 `jobId` 时挑当前会话最新的可取消 job。先给 cursor-agent 进程发 SIGTERM，再发给 Node 包装层。
 
+## 计费模型 — 把每次 dispatch 喂饱（auto 模式）
+
+当 `--model auto` 生效时（新派遣的默认），cursor **按 request 计费，而不是按 token 计费**。一次消耗 400 万 token 的 dispatch 和一次 4 万 token 的 dispatch 都只算 1 次 request — 所以把工作拆成多次细 dispatch 严格比合成一次大 dispatch 贵。
+
+这点很重要，因为 agent 的本能反应——"先发一次重命名，再发一次更新调用方，再发一次加测试"——会把一个 feature 变成 3-4 次 request。把同样的工作打包成一次带完整规格的 dispatch，只算 1 次 request。
+
+为了让单次 dispatch 性价比拉满，`/cursor:dispatch` 时建议包上：
+
+- **范围** — 允许改动哪些文件/目录，哪些禁止触碰。
+- **验收标准** — 哪些测试必须通过、哪些 invariant 必须保持、哪些行为要验证。
+- **回归检查** — 顺便点检哪些相邻 feature 没被悄悄打破。
+- **自检** — 让 cursor 自己跑 `npm test` / `npm run lint` / 相关构建，并在最终回复中报告结果。
+
+**例外：** 当调用方显式传 `--model <id>`（不是 `auto`）时，计费回落到按 token 收费。这种情况下要让 prompt 精简，避免堆料。
+
+同样的指引也写在 [`skills/cursor-cli-runtime/SKILL.md`](./plugins/cursor/skills/cursor-cli-runtime/SKILL.md) 和 [`cursor-dispatch` subagent](./plugins/cursor/agents/cursor-dispatch.md) 里，方便上游 agent 调用方（Claude Code 主线程、Codex、其他派发型 agent）在转发前看到。subagent 自己**不会**改写或扩充 prompt — 打包责任在上游 caller。
+
 ## 架构（简）
 
 ```

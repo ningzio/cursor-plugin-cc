@@ -1,7 +1,7 @@
 {
   "name": "cursor",
-  "version": "0.2.3",
-  "description": "Dispatch tasks to cursor-agent from Claude Code with worktree isolation, background jobs, and session boundary safety.",
+  "version": "0.3.0",
+  "description": "Dispatch tasks to cursor-agent from Claude Code. In-place by default; --isolated opts into a sandbox worktree. Background jobs, session boundary safety, structured policy refusals.",
   "author": { "name": "ningzio", "url": "https://github.com/ningzio" },
   "homepage": "https://github.com/ningzio/cursor-plugin-cc",
   "repository": "https://github.com/ningzio/cursor-plugin-cc",

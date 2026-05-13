@@ -1,25 +1,42 @@
 # cursor-plugin-cc
 
-A Claude Code and Codex plugin that dispatches tasks to the [cursor-agent CLI](https://docs.cursor.com/cli) and runs them in isolated git worktrees. Foreground or background, with full job control (status / result / cancel) and safe boundaries between agent sessions.
+A Claude Code and Codex plugin that dispatches tasks to the [cursor-agent CLI](https://docs.cursor.com/cli). Foreground or background, with full job control (status / result / cancel / cleanup) and safe boundaries between agent sessions. By default cursor edits your cwd directly; `--isolated` opts into a sandbox git worktree.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.18-blue.svg)](https://nodejs.org/)
 
 [中文文档 →](./README.zh-CN.md)
 
+> **v0.3 breaking change.** The default execution mode flipped from *isolated worktree* to *in-place*. Cursor now edits your cwd and commits land on your current branch — no cherry-pick needed. To keep the old behaviour, pass `--isolated` (or just `--background`, which still defaults to isolated). See [CHANGELOG.md](./CHANGELOG.md) for the migration note.
+
 ---
 
 ## What this is
 
-When Claude Code or Codex is doing a task and you want to spin up a parallel agent — a second pair of eyes, a long-running migration, an independent implementation pass — you can hand it off to cursor-agent. This plugin gives your coding agent five slash commands to do that safely:
+When Claude Code or Codex is doing a task and you want to spin up a parallel agent — a second pair of eyes, a long-running migration, an independent implementation pass — you can hand it off to cursor-agent. This plugin gives your coding agent six slash commands to do that safely:
 
 - `/cursor:setup` — verify cursor-agent is installed and logged in
-- `/cursor:dispatch <prompt>` — send a task to cursor-agent in a fresh git worktree (foreground or background)
+- `/cursor:dispatch <prompt>` — send a task to cursor-agent in your cwd (or an isolated sandbox)
 - `/cursor:status` — list jobs in the current agent session
 - `/cursor:result [jobId]` — fetch the result of the latest (or a specific) job
 - `/cursor:cancel [jobId]` — cancel a running job
+- `/cursor:cleanup [jobId|--all-finished]` — remove sandbox worktrees left behind by isolated jobs
 
-The plugin handles git worktree creation, auto-commits cursor's changes back to a per-job branch, and persists job state across slash command invocations.
+The plugin handles optional git worktree creation, auto-commits (isolated mode only), and persists job state across slash command invocations.
+
+## Background / autonomous use — allow companion in settings.json
+
+If another agent will be driving `/cursor:dispatch` in a background or autonomous session (no human at the keyboard to approve permission prompts), allowlist the companion runtime once:
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/cursor-companion.mjs *)"]
+  }
+}
+```
+
+The `${CLAUDE_PLUGIN_ROOT}` path is injected by the plugin host and stays stable across upgrades. Without this, the permission classifier may block `node …/cursor-companion.mjs …` in background sessions and the dispatch will appear to hang or refuse with no human-readable cause.
 
 ## Why not just shell out to cursor-agent?
 
@@ -130,11 +147,13 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 
 ```
 /cursor:dispatch [--wait | --background]
+                 [--isolated | --in-place]
                  [--resume <jobId> | --fresh]
                  [--model <model>]
                  [--mode plan | ask | agent]
                  [--plan-only]
                  [--worktree-base <ref>]
+                 [--include-dirty]
                  <prompt>
 ```
 
@@ -142,16 +161,23 @@ worktree: /your/repo/.cursor/worktrees/cur-8a0de9e1
 |---|---|
 | `--wait` (default for tiny prompts) | Block until cursor finishes; print result inline |
 | `--background` | Detach immediately; check progress with `/cursor:status` |
-| `--resume <jobId>` | Continue an existing cursor thread in the same worktree |
+| `--isolated` | Run in a `.cursor/worktrees/<jobId>/` sandbox on a `<jobId>` branch; auto-commit on success. Default for `--background` |
+| `--in-place` | Run in the caller's cwd, no worktree, no auto-commit. Default for `--wait` / interactive dispatch. Pass alongside `--background` to override the default. |
+| `--resume <jobId>` | Continue an existing cursor thread. Mode is locked to the original job's mode (isolated stays isolated, in-place stays in-place). |
 | `--fresh` | Start a new dispatch even if a previous job is reusable |
 | `--model <model>` | Pass a model name to cursor-agent (e.g. `--model claude-4.5-sonnet`). When omitted on a fresh dispatch, the slash command silently appends `--model auto` so cursor's per-request router picks. Run `cursor-agent --list-models` (or `cursor-agent models`) to see currently available IDs — cursor's lineup changes over time. `--resume <jobId>` keeps the thread's existing model. |
-| `--mode <plan\|ask\|agent>` | Pick the cursor execution mode. `plan` = read-only/planning. `ask` = read-only Q&A. `agent` = default (may edit). Read-only modes drop `--force` and skip the worktree auto-commit. |
+| `--mode <plan\|ask\|agent>` | Pick the cursor execution mode. `plan` = read-only/planning. `ask` = read-only Q&A. `agent` = default (may edit). Read-only modes drop `--force` and skip the auto-commit. |
 | `--plan-only` | Back-compat alias for `--mode plan` |
-| `--worktree-base <ref>` | Branch the worktree off a specific ref instead of HEAD |
+| `--worktree-base <ref>` | Branch the sandbox worktree off a specific ref instead of HEAD. Only valid with `--isolated`. |
+| `--include-dirty` | Acknowledge dirty-cwd risk and proceed. Required by `--background --in-place` when the cwd has uncommitted changes. |
 
 When the user does not specify a mode, the slash command picks one based on the request shape and confirms once with a three-option chooser (Ask only / Plan only / Agent).
 
-When `<prompt>` contains shell metacharacters (`$`, backticks, `;`), they're never re-evaluated by sh. The slash command writes the raw prompt to a tempfile and the companion tokenises it inside Node.
+When `<prompt>` contains shell metacharacters (`$`, backticks, `;`), they're never re-evaluated by sh — the slash command pipes the raw prompt to the companion over stdin via a heredoc, and the companion tokenises it inside Node.
+
+### Refusal output
+
+If dispatch (or any companion subcommand) declines for policy reasons, the first line of stderr is `REFUSED: <CODE>` (e.g. `REFUSED: EINPLACEDIRTY`), followed by a `Reason:` line and a `Caller next steps:` list. The output is designed for both humans and agent callers — grep `^REFUSED:` to detect a policy refusal programmatically, and read the steps to know which flag to add/drop. Exit code is `2` for policy refusals.
 
 ### `/cursor:status [--all] [--json]`
 
@@ -163,7 +189,28 @@ Without `jobId`, returns the latest *completed* job from the current session. Wi
 
 ### `/cursor:cancel [jobId] [--json]`
 
-Cancels a running or queued job. Without `jobId`, picks the newest cancellable job in the current session. Sends SIGTERM to the cursor agent process first, then to the Node wrapper.
+Cancels a running or queued job. Without `jobId`, picks the newest cancellable job in the current session. Sends SIGTERM to the cursor agent process first, then to the Node wrapper. For isolated jobs, the sandbox worktree is auto-removed (the cancel happened mid-flight so nothing was committed). In-place jobs leave the cwd untouched.
+
+### `/cursor:cleanup [jobId | --all-finished] [--apply] [--json]`
+
+Remove `.cursor/worktrees/<jobId>` sandbox directories for terminal isolated jobs. **Dry-run by default**: prints what would be removed without touching the disk. Pass `--apply` to actually delete. In-place jobs have no sandbox and are listed as skipped. Useful after a series of `--isolated` dispatches whose commits have already been cherry-picked or rejected.
+
+## Cost model — pack each dispatch (auto mode)
+
+When `--model auto` is in effect (the default for fresh dispatches), cursor bills **per request, not per token**. A single dispatch consuming 4M tokens and one consuming 40K tokens both cost 1 request — so splitting work across many thin dispatches is strictly more expensive than bundling it into one fat dispatch with the same total work.
+
+This matters because the natural agent reflex — "I'll send a quick rename now, then a follow-up to update callers, then another to add tests" — turns one feature into three to four requests. The same work shipped as a single packed dispatch with a self-contained spec costs one request.
+
+To get the most out of each call, pack `/cursor:dispatch` with:
+
+- **Scope** — which files / directories are in-bounds, and which must not be touched.
+- **Acceptance criteria** — specific tests that must pass, invariants that must hold, observable behaviors to verify.
+- **Regression checks** — adjacent features to spot-check so the change doesn't silently break them.
+- **Self-validation** — ask cursor to run `npm test` / `npm run lint` / the relevant build and include results in its final answer.
+
+**Exception:** when the caller explicitly passes `--model <id>` (not `auto`), billing falls back to token-based. In that case, keep prompts lean and avoid padding.
+
+This guidance is mirrored in [`skills/cursor-cli-runtime/SKILL.md`](./plugins/cursor/skills/cursor-cli-runtime/SKILL.md) and the [`cursor-dispatch` subagent](./plugins/cursor/agents/cursor-dispatch.md) so upstream agent callers (Claude Code main thread, Codex, other dispatching agents) see it before forwarding. The subagent itself never rewrites or enriches the prompt — the packing responsibility is the upstream caller's.
 
 ## How it works (briefly)
 
@@ -173,20 +220,24 @@ Cancels a running or queued job. Without `jobId`, picks the newest cancellable j
         ┌──────────────────┼──────────────────┐
         │                  │                  │
   SessionStart hook    /cursor:dispatch    /cursor:status
-  (stamps session id)  (writes raw args        ↓
-        ↓               to tempfile)      cursor-companion.mjs
-   $CURSOR_COMPANION_         ↓           (loads state.json,
-    SESSION_ID export    cursor-dispatch        filters by session)
-        ↓                  subagent
-        └──────────────────┐  ↓
-                           ↓  ↓
+  (stamps session id)  (heredoc | stdin)       ↓
+        ↓                   ↓             cursor-companion.mjs
+   $CURSOR_COMPANION_  cursor-dispatch    (loads state.json,
+    SESSION_ID export   subagent          filters by session)
+        ↓                   ↓
+        └───────────────────┘
+                            ↓
                    cursor-companion.mjs dispatch
-                   1. reserve job in state.json (atomic)
-                   2. create git worktree
-                   3. spawn cursor-agent
-                   4. parse stream-json events
-                   5. auto-commit on completion
-                   6. update state.json
+                   1. resolve mode (in-place by default,
+                      isolated for --background or --isolated)
+                   2. reserve job in state.json (atomic)
+                   3. ISOLATED: create git worktree
+                      IN-PLACE: run in cwd directly
+                   4. spawn cursor-agent
+                   5. parse stream-json events
+                   6. ISOLATED: auto-commit on success
+                      IN-PLACE: leave commit decision to caller
+                   7. update state.json
 ```
 
 State lives at `$CLAUDE_PLUGIN_DATA/state/<repo-slug>-<hash>/`, scoped per-cwd so different projects don't share job records.

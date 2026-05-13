@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), "../..");
-const RELEASE_VERSION = "0.2.3";
+const RELEASE_VERSION = "0.3.0";
 const PLUGIN_ROOT = "plugins/cursor";
 
 function readJson(relativePath) {

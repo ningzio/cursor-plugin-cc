@@ -1,11 +1,13 @@
 ---
-description: Dispatch a task to cursor agent in an isolated git worktree
-argument-hint: '[--wait|--background] [--resume <jobId>|--fresh] [--model <m>] [--mode plan|ask|agent] [--plan-only] [--worktree-base <ref>] <prompt>'
+description: Dispatch a task to cursor agent (in-place by default; --isolated for sandbox)
+argument-hint: '[--wait|--background] [--isolated|--in-place] [--resume <jobId>|--fresh] [--model <m>] [--mode plan|ask|agent] [--plan-only] [--worktree-base <ref>] [--include-dirty] <prompt>'
 disable-model-invocation: true
 allowed-tools: Bash(node:*), AskUserQuestion, Agent
 ---
 
-Forward the user request to the `cursor:cursor-dispatch` subagent. The subagent invokes `cursor-companion.mjs dispatch` once via the `--raw-args-file` channel (codex F2 — `$ARGUMENTS` may contain shell metacharacters; never interpolate it into a bash pipeline) and returns stdout verbatim.
+Forward the user request to the `cursor:cursor-dispatch` subagent. The subagent invokes `cursor-companion.mjs dispatch` once via the `--raw-args-stdin` channel (codex F2 — `$ARGUMENTS` may contain shell metacharacters; never interpolate it into a bash pipeline) and returns stdout verbatim.
+
+**Sandbox model (v0.3+):** by default, cursor edits the caller's cwd directly (`--in-place`). Commits land on the current branch — no cherry-pick needed. Pass `--isolated` to opt into the legacy `.cursor/worktrees/<jobId>` sandbox with auto-commit to a `<jobId>` branch. `--background` defaults to `--isolated` (a background agent racing your edits is dangerous); pass `--in-place` explicitly to override.
 
 Raw user request:
 $ARGUMENTS
@@ -58,16 +60,17 @@ Resume routing:
   - On `Continue`, append `--resume <returned-jobId>` to the forwarded text.
   - On `Start a new dispatch`, append `--fresh`.
 
-Forwarding (codex F2 — write the full forwarded text to a tempfile in this turn, never inline it):
+Forwarding (codex F2 — the full forwarded text goes on stdin via a heredoc; sh never re-evaluates it):
+
+Pass the prompt + flags to the subagent through stdin. The subagent runs:
 
 ```bash
-TMP=$(mktemp -t cursor-args.XXXXXXXX)
-cat >"$TMP" <<'__CURSOR_RAW_ARGS_END_a8f3c91d4b__'
-<the full forwarded request, including any --resume/--fresh/--wait/--background you appended>
+node "${CLAUDE_PLUGIN_ROOT}/scripts/cursor-companion.mjs" dispatch --raw-args-stdin <<'__CURSOR_RAW_ARGS_END_a8f3c91d4b__'
+<the full forwarded request, including any --resume/--fresh/--wait/--background/--isolated/--in-place/--mode you appended>
 __CURSOR_RAW_ARGS_END_a8f3c91d4b__
 ```
 
-Then `Agent({ subagent_type: "cursor:cursor-dispatch", prompt: "Run cursor-companion.mjs dispatch --raw-args-file " + $TMP })` (or pass `$TMP` to the subagent through the prompt). The subagent will execute exactly one `node cursor-companion.mjs dispatch --raw-args-file <path>` call.
+Invoke as `Agent({ subagent_type: "cursor:cursor-dispatch", prompt: "<forwarded args>", run_in_background: <true if --background, else false> })` — the subagent already knows the stdin contract and will do exactly one heredoc-piped `node ... --raw-args-stdin` call.
 
 - Return the subagent's stdout verbatim.
 - Do not paraphrase, summarize, fix issues, or do any follow-up work in the main thread.

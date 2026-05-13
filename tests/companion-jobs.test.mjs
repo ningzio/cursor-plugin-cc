@@ -179,7 +179,10 @@ test("dispatch --resume refuses when cursorSessionId is already busy", () => {
 
       const r = run(repo, ["dispatch", "--wait", "--resume", "cur-target", "follow up"], env);
       assert.notEqual(r.status, 0);
-      assert.match(r.stderr, /still running on cursorSessionId sess-busy/);
+      assert.match(r.stderr, /^REFUSED: EJOBCONFLICT/);
+      assert.match(r.stderr, /still running on cursor session sess-busy/);
+      assert.match(r.stderr, /Caller next steps:/);
+      assert.match(r.stderr, /cursor-companion\.mjs cancel cur-busy/);
 
       Object.assign(process.env, env);
       try {
@@ -189,6 +192,129 @@ test("dispatch --resume refuses when cursorSessionId is already busy", () => {
         delete process.env.CLAUDE_PLUGIN_DATA;
         delete process.env.CURSOR_COMPANION_SESSION_ID;
       }
+    });
+  });
+});
+
+// Default (in-place) dispatches on the same cwd must serialise — two
+// cursor agents writing the same working tree at once is a guaranteed race.
+// Isolated dispatches don't have this concern (each has its own sandbox).
+test("dispatch --in-place refuses when another in-place dispatch is running in same cwd → EINPLACEBUSY", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      const env = { CLAUDE_PLUGIN_DATA: data, CURSOR_COMPANION_SESSION_ID: "claude-ip" };
+      execSync("git init -q -b main", { cwd: repo });
+      execSync("git config user.email t@t.t && git config user.name t", { cwd: repo });
+      execSync("touch a.txt && git add -A && git commit -q -m init", { cwd: repo });
+      Object.assign(process.env, env);
+      try {
+        upsertJob(repo, {
+          id: "cur-ip-busy", status: "running", mode: "in-place",
+          claudeSessionId: "claude-ip", cwd: repo, worktree: repo,
+          branch: null, repoRoot: repo
+        });
+      } finally {
+        delete process.env.CLAUDE_PLUGIN_DATA;
+        delete process.env.CURSOR_COMPANION_SESSION_ID;
+      }
+      const r = run(repo, ["dispatch", "--wait", "x"], env);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /^REFUSED: EINPLACEBUSY/);
+      assert.match(r.stderr, /cur-ip-busy/);
+      assert.match(r.stderr, /--isolated/);
+    });
+  });
+});
+
+// Resume of an in-place job with --isolated flag is illegal — the original
+// thread's filesystem context (cwd, no sandbox branch) can't be reproduced
+// inside a sandbox. Refuse with concrete next steps.
+test("dispatch --resume of in-place job with --isolated → ERESUMEMODEMISMATCH", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      const env = { CLAUDE_PLUGIN_DATA: data, CURSOR_COMPANION_SESSION_ID: "claude-mm" };
+      execSync("git init -q -b main", { cwd: repo });
+      execSync("git config user.email t@t.t && git config user.name t", { cwd: repo });
+      execSync("touch a.txt && git add -A && git commit -q -m init", { cwd: repo });
+      Object.assign(process.env, env);
+      try {
+        upsertJob(repo, {
+          id: "cur-prev-ip", status: "completed", mode: "in-place",
+          claudeSessionId: "claude-mm", cursorSessionId: "sess-mm-ip",
+          cwd: repo, worktree: repo, branch: null, repoRoot: repo
+        });
+      } finally {
+        delete process.env.CLAUDE_PLUGIN_DATA;
+        delete process.env.CURSOR_COMPANION_SESSION_ID;
+      }
+      const r = run(repo, ["dispatch", "--wait", "--resume", "cur-prev-ip", "--isolated", "follow"], env);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /^REFUSED: ERESUMEMODEMISMATCH/);
+      assert.match(r.stderr, /ran in-place/);
+      assert.match(r.stderr, /Drop `--isolated`/);
+    });
+  });
+});
+
+test("dispatch --resume of isolated job with --in-place → ERESUMEMODEMISMATCH", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      const env = { CLAUDE_PLUGIN_DATA: data, CURSOR_COMPANION_SESSION_ID: "claude-mm2" };
+      execSync("git init -q -b main", { cwd: repo });
+      execSync("git config user.email t@t.t && git config user.name t", { cwd: repo });
+      execSync("touch a.txt && git add -A && git commit -q -m init", { cwd: repo });
+      Object.assign(process.env, env);
+      try {
+        upsertJob(repo, {
+          id: "cur-prev-iso", status: "completed", mode: "isolated",
+          claudeSessionId: "claude-mm2", cursorSessionId: "sess-mm-iso",
+          worktree: "/tmp/somewhere", branch: "cur-prev-iso", repoRoot: repo
+        });
+      } finally {
+        delete process.env.CLAUDE_PLUGIN_DATA;
+        delete process.env.CURSOR_COMPANION_SESSION_ID;
+      }
+      const r = run(repo, ["dispatch", "--wait", "--resume", "cur-prev-iso", "--in-place", "follow"], env);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /^REFUSED: ERESUMEMODEMISMATCH/);
+      assert.match(r.stderr, /ran in an isolated worktree/);
+      assert.match(r.stderr, /Drop `--in-place`/);
+    });
+  });
+});
+
+// The dirty-cwd race policy applies to in-place resume + --background too —
+// the resume's "worktree" IS the user's cwd, so a background cursor and
+// concurrent live edits would still collide. Fresh and resume must both
+// refuse.
+test("dispatch --resume <in-place-job> --background with dirty cwd → EINPLACEDIRTY", () => {
+  withTempDir((repo) => {
+    withTempDir((data) => {
+      const env = { CLAUDE_PLUGIN_DATA: data, CURSOR_COMPANION_SESSION_ID: "claude-rd" };
+      execSync("git init -q -b main", { cwd: repo });
+      execSync("git config user.email t@t.t && git config user.name t", { cwd: repo });
+      fs.writeFileSync(path.join(repo, "a.txt"), "x");
+      execSync("git add -A && git commit -q -m init", { cwd: repo });
+      // Make cwd dirty.
+      fs.writeFileSync(path.join(repo, "user-wip.txt"), "in-progress edit");
+
+      Object.assign(process.env, env);
+      try {
+        upsertJob(repo, {
+          id: "cur-ip-prev", status: "completed", mode: "in-place",
+          claudeSessionId: "claude-rd", cursorSessionId: "sess-rd",
+          cwd: repo, worktree: repo, branch: null, repoRoot: repo
+        });
+      } finally {
+        delete process.env.CLAUDE_PLUGIN_DATA;
+        delete process.env.CURSOR_COMPANION_SESSION_ID;
+      }
+
+      const r = run(repo, ["dispatch", "--background", "--resume", "cur-ip-prev", "follow"], env);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /^REFUSED: EINPLACEDIRTY/);
+      assert.match(r.stderr, /uncommitted changes/);
+      assert.match(r.stderr, /--include-dirty/);
     });
   });
 });

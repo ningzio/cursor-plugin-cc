@@ -51,9 +51,20 @@ export async function runForegroundJob({
   const finalBinary = agentBinary ?? defaultBin.binary;
   const finalBinaryArgs = agentBinaryArgs ?? defaultBin.args;
 
+  // Default to isolated for back-compat with any tests / callers that
+  // pre-date the v0.3 flip; cursor-companion.mjs always sets it explicitly.
+  const isolated = options.isolated !== false;
+
   let worktree = providedWorktree;
   if (!worktree) {
-    worktree = createDispatchWorktree(repoRoot, jobId, { baseRef: options.baseRef });
+    if (isolated) {
+      worktree = createDispatchWorktree(repoRoot, jobId, { baseRef: options.baseRef });
+    } else {
+      // In-place: cursor runs in the caller's cwd. We don't create a worktree
+      // and we don't touch the user's branch — the caller commits if/when
+      // they're satisfied with the diff.
+      worktree = cwd;
+    }
   }
 
   const logFile = resolveJobLogFile(cwd, jobId);
@@ -71,10 +82,12 @@ export async function runForegroundJob({
   upsertJob(cwd, {
     id: jobId,
     kind: "dispatch",
+    mode: isolated ? "isolated" : "in-place",
+    cwd,
     claudeSessionId,
     cursorSessionId: providedSessionId ?? null,
     worktree,
-    branch: jobId,
+    branch: isolated ? jobId : null,
     repoRoot,
     parentJobId,
     status: "running",
@@ -129,11 +142,15 @@ export async function runForegroundJob({
   upsertJob(cwd, { id: jobId, agentPid: null });
 
   let headSha = null;
-  // Read-only modes (plan, ask) leave the worktree alone — the user only wanted
-  // analysis or Q&A, not committed edits. Any other mode (including the default
-  // agent mode where options.mode === null) finalizes on success.
+  // Three reasons NOT to auto-commit:
+  //   1. Read-only modes (plan, ask) — the user only wanted analysis.
+  //   2. The agent failed — don't commit a broken half-finished state.
+  //   3. In-place mode — the worktree IS the user's cwd; auto-commit would
+  //      `git add -A` and silently absorb whatever the user had staged.
+  //      The caller is responsible for commit in-place.
+  // Default (isolated agent mode + success) is the only path that commits.
   const isReadOnlyMode = options.mode === "plan" || options.mode === "ask";
-  const shouldFinalize = !isReadOnlyMode && !captured.isError;
+  const shouldFinalize = isolated && !isReadOnlyMode && !captured.isError;
   if (shouldFinalize) {
     headSha = finalizeWorktree(worktree, jobId, prompt);
   }
@@ -156,8 +173,10 @@ export async function runForegroundJob({
   writeJobFile(cwd, jobId, {
     ...jobRecord,
     prompt,
+    mode: isolated ? "isolated" : "in-place",
+    cwd,
     worktree,
-    branch: jobId,
+    branch: isolated ? jobId : null,
     repoRoot,
     logFile,
     parentJobId
@@ -171,6 +190,7 @@ export async function runForegroundJob({
     durationMs: captured.durationMs,
     headSha,
     worktree,
+    mode: isolated ? "isolated" : "in-place",
     logFile
   };
 }

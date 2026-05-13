@@ -1,7 +1,7 @@
 {
   "name": "cursor-plugin-cc",
-  "version": "0.2.3",
-  "description": "A Claude Code and Codex plugin that dispatches tasks to cursor-agent in isolated git worktrees, with background jobs and session boundary safety.",
+  "version": "0.3.0",
+  "description": "A Claude Code and Codex plugin that dispatches tasks to cursor-agent. In-place by default; --isolated opts into a sandbox worktree. Background jobs, session boundary safety, structured policy refusals.",
   "type": "module",
   "engines": { "node": ">=18.18" },
   "scripts": {
